@@ -1,10 +1,18 @@
 package main
 
 import (
-	"go-rest-api/app"
-	"go-rest-api/config"
+	"log"
+	"net/http"
+	"strconv"
+
+	"github.com/rodrigomkd/go-rest-api/config"
+	"github.com/rodrigomkd/go-rest-api/route"
 )
 
+//main - Start Server
 func main() {
-	app.StartServer(config.SERVER_PORT)
+	router := route.GetRouter()
+	port := config.ReadConfig().ServerPort
+
+	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(port), router))
 }

@@ -13,6 +13,12 @@ Clone the repo:
 
 # Download packages:
     * gorilla/mux: `go get github.com/gorilla/mux`
+    * BurntSushi/toml: `go get github.com/BurntSushi/toml`
+
+Set properties variables
+
+    ServerPort=3000 <SERVER PORT> 
+    DataSource="data.csv" <CSV PATH>
 
 Run the server
 
