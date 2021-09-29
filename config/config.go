@@ -7,9 +7,6 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-//const SERVER_PORT = 3000
-//const DATA_SOURCE = "data.csv"
-
 // Config ...
 type Config struct {
 	ServerPort int
@@ -27,6 +24,6 @@ func ReadConfig() Config {
 	if _, err := toml.DecodeFile(configfile, &config); err != nil {
 		log.Fatal(err)
 	}
-	//log.Print(config.Index)
+
 	return config
 }
