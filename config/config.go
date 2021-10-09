@@ -11,10 +11,10 @@ import (
 type Config struct {
 	ServerPort int
 	DataSource string
+	ApiUri     string
 }
 
-func ReadConfig() Config {
-	var configfile = "properties.ini"
+func ReadConfig(configfile string) Config {
 	_, err := os.Stat(configfile)
 	if err != nil {
 		log.Fatal("Config file is missing: ", configfile)

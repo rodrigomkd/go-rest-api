@@ -6,54 +6,51 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/rodrigomkd/go-rest-api/common"
-	"github.com/rodrigomkd/go-rest-api/config"
+	"github.com/rodrigomkd/go-rest-api/model"
+	"github.com/rodrigomkd/go-rest-api/service/api"
+	"github.com/rodrigomkd/go-rest-api/service/csv"
 )
 
-type item struct {
-	ID          int    `json:"ID"`
-	Description string `json:"Description"`
+//struct
+type Service struct {
+	cs         csv.CSVService
+	api        api.ApiService
+	dataSource string
+}
+
+func New(cs csv.CSVService, api api.ApiService, dataSource string) *Service {
+	return &Service{
+		cs:         cs,
+		api:        api,
+		dataSource: dataSource,
+	}
 }
 
 //GetItems - Returns items from CSV
-func GetItems() ([]item, error) {
-	items := []item{}
+func (s Service) GetItems() ([]model.Activity, error) {
+	items := s.api.GetActivities()
 
-	csvLines, err := common.ReadCSV(config.ReadConfig().DataSource)
-	if err != nil {
-		log.Println("Error reading CSV: ", err)
-		return items, err
-	}
-	for _, line := range csvLines {
-		id, err := strconv.Atoi(line[0])
-		if err != nil {
-			log.Println("Error ID is not an Integer: ", err)
-			return items, err
-		}
-
-		temp := item{
-			ID:          id,
-			Description: line[1],
-		}
-		items = append(items, temp)
-		log.Println("items: ", items)
-	}
+	s.cs.SaveActivities(s.dataSource, items)
 
 	return items, nil
 }
 
-func GetItem(id int) (item, error) {
-	items, err := GetItems()
+func (s Service) GetItemsSync() ([]model.Activity, error) {
+	return s.GetItems()
+}
+
+func (s Service) GetItem(id int) (model.Activity, error) {
+	items, err := s.GetItems()
 	if err != nil {
-		return item{}, errors.New(strconv.Itoa(http.StatusInternalServerError))
+		return model.Activity{}, errors.New(strconv.Itoa(http.StatusInternalServerError))
 	}
 
-	for _, task := range items {
-		if task.ID == id {
-			log.Println("Item found: ", task)
-			return task, nil
+	for _, act := range items {
+		if act.Id == id {
+			log.Println("Item found: ", act)
+			return act, nil
 		}
 	}
 
-	return item{}, errors.New(strconv.Itoa(http.StatusNotFound))
+	return model.Activity{}, errors.New(strconv.Itoa(http.StatusNotFound))
 }

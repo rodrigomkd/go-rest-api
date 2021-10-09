@@ -6,13 +6,30 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gorilla/mux"
 	"github.com/rodrigomkd/go-rest-api/service"
+
+	"github.com/gorilla/mux"
 )
 
-func GetItems(w http.ResponseWriter, r *http.Request) {
+type IController interface {
+	GetItems(w http.ResponseWriter, req *http.Request)
+	GetItem(w http.ResponseWriter, req *http.Request)
+	GetItemsSync(w http.ResponseWriter, req *http.Request)
+}
+
+type Controller struct {
+	s service.Service
+}
+
+func New(s service.Service) *Controller {
+	return &Controller{
+		s: s,
+	}
+}
+
+func (c Controller) GetItems(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	items, err := service.GetItems()
+	items, err := c.s.GetItems()
 	if err != nil {
 		errorResponse(w, "Some Error Occurred", 500)
 		return
@@ -21,7 +38,18 @@ func GetItems(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(items)
 }
 
-func GetItem(w http.ResponseWriter, r *http.Request) {
+func (c Controller) GetItemsSync(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	items, err := c.s.GetItems()
+	if err != nil {
+		errorResponse(w, "Some Error Occurred", 500)
+		return
+	}
+
+	json.NewEncoder(w).Encode(items)
+}
+
+func (c Controller) GetItem(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
@@ -31,7 +59,7 @@ func GetItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := service.GetItem(taskID)
+	item, err := c.s.GetItem(taskID)
 	if err != nil {
 		log.Println("log error: ", err.Error())
 		if err.Error() == strconv.Itoa(http.StatusNotFound) {
