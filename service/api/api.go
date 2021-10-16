@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"go-rest-api/model"
+	"github.com/rodrigomkd/go-rest-api/model"
 )
 
 type IHttpClient interface {

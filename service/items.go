@@ -19,6 +19,11 @@ type Service struct {
 	dataSource string
 }
 
+type ICSVService interface {
+	ReadCSV() ([][]string, error)
+	SaveActivities(activities []model.Activity)
+}
+
 func New(cs csv.CSVService, csw csv.CSVWorkerService, api api.ApiService, dataSource string) *Service {
 	return &Service{
 		cs:         cs,

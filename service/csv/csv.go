@@ -9,27 +9,25 @@ import (
 	"github.com/rodrigomkd/go-rest-api/model"
 )
 
-type ICSVService interface {
-	ReadCSV() ([][]string, error)
-	SaveCSV(records [][]string)
-	SaveActivities(activities []model.Activity)
+type IFile interface {
+	Open(name string) (*os.File, error)
 }
 
 type CSVService struct {
-	csv        ICSVService
-	path       string
-	activities []model.Activity
+	path string
+	file IFile
 }
 
-func New(path string) *CSVService {
+func New(path string, file IFile) *CSVService {
 	return &CSVService{
 		path: path,
+		file: file,
 	}
 }
 
 //Read CSV file
 func (cs CSVService) ReadCSV() ([][]string, error) {
-	csvFile, err := os.Open(cs.path)
+	csvFile, err := cs.file.Open(cs.path)
 	if err != nil {
 		log.Print("Error to open CSV file: ", err)
 		return nil, err
