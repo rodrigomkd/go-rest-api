@@ -10,24 +10,29 @@ import (
 )
 
 type ICSVService interface {
-	ReadCSV(path string) ([][]string, error)
-	SaveCSV(path string, records [][]string)
-	SaveActivities(path string, activities []model.Activity)
+	ReadCSV() ([][]string, error)
+	SaveCSV(records [][]string)
+	SaveActivities(activities []model.Activity)
 }
 
 type CSVService struct {
-	csv ICSVService
+	csv        ICSVService
+	path       string
+	activities []model.Activity
 }
 
-func New() *CSVService {
-	return &CSVService{}
+func New(path string) *CSVService {
+	return &CSVService{
+		path: path,
+	}
 }
 
 //Read CSV file
-func (cs CSVService) ReadCSV(path string) ([][]string, error) {
-	csvFile, err := os.Open(path)
+func (cs CSVService) ReadCSV() ([][]string, error) {
+	csvFile, err := os.Open(cs.path)
 	if err != nil {
 		log.Print("Error to open CSV file: ", err)
+		return nil, err
 	}
 
 	log.Print("Successfully Opened CSV file")
@@ -36,29 +41,47 @@ func (cs CSVService) ReadCSV(path string) ([][]string, error) {
 	return csv.NewReader(csvFile).ReadAll()
 }
 
-func (cs CSVService) SaveCSV(path string, records [][]string) {
-	if _, err := os.Stat(path); os.IsExist(err) {
-		os.Remove(path)
+func (cs CSVService) SaveCSV(records [][]string) error {
+	if _, err := os.Stat(cs.path); os.IsExist(err) {
+		if err != nil {
+			log.Println("ERROR: ", err)
+			return err
+		}
+		log.Println("File was found, removing file... ", cs.path)
+		os.Remove(cs.path)
 	}
 
-	file, err := os.Create(path)
-	checkError("Cannot create file: ", err)
+	file, err := os.Create(cs.path)
+	if err != nil {
+		log.Println("ERROR: ", err)
+		return err
+	}
+
 	defer file.Close()
 
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
 	err = writer.WriteAll(records)
-	checkError("Cannot write to file", err)
-}
-
-func (cs CSVService) SaveActivities(path string, activities []model.Activity) {
-	if _, err := os.Stat(path); os.IsExist(err) {
-		os.Remove(path)
+	if err != nil {
+		log.Println("ERROR: ", err)
+		return err
 	}
 
-	file, err := os.Create(path)
-	checkError("Cannot create file: ", err)
+	return nil
+}
+
+func (cs CSVService) SaveActivities(activities []model.Activity) error {
+	if _, err := os.Stat(cs.path); os.IsExist(err) {
+		log.Println("Removing existing path...", cs.path)
+		os.Remove(cs.path)
+	}
+
+	file, err := os.Create(cs.path)
+	if err != nil {
+		log.Println("ERROR: ", err)
+		return err
+	}
 	defer file.Close()
 
 	writer := csv.NewWriter(file)
@@ -66,13 +89,12 @@ func (cs CSVService) SaveActivities(path string, activities []model.Activity) {
 
 	records := convertActivitiesCsv(activities)
 	err = writer.WriteAll(records)
-	checkError("Cannot write to file", err)
-}
-
-func checkError(message string, err error) {
 	if err != nil {
-		log.Println("ERROR: ", message, err)
+		log.Println("ERROR: ", err)
+		return err
 	}
+
+	return nil
 }
 
 func convertActivitiesCsv(activities []model.Activity) [][]string {

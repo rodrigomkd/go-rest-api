@@ -2,50 +2,42 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 
-	"github.com/rodrigomkd/go-rest-api/model"
+	"go-rest-api/model"
 )
 
-type IApiService interface {
-	GetActivities() []model.Activity
+type IHttpClient interface {
+	Get(url string) (resp *http.Response, err error)
 }
 
 type ApiService struct {
 	activitiesUri string
-	api           IApiService
+	httpClient    IHttpClient
 }
 
-func New(activitiesUri string) *ApiService {
+func New(activitiesUri string, client IHttpClient) *ApiService {
 	return &ApiService{
 		activitiesUri: activitiesUri,
+		httpClient:    client,
 	}
 }
 
-//ReadAPI - call api and returns the response
-func readAPI(uri string) []byte {
-	response, err := http.Get(uri)
-
+func (api ApiService) GetActivities() []model.Activity {
+	response, err := api.httpClient.Get(api.activitiesUri)
+	log.Println("API response: ", response)
 	if err != nil {
-		fmt.Print(err.Error())
-		os.Exit(1)
+		log.Println("ERROR: ", err)
 	}
 
 	responseData, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Println("ERROR: ", err)
 	}
 
-	return responseData
-}
-
-func (api ApiService) GetActivities() []model.Activity {
-	responseData := readAPI(api.activitiesUri)
 	var responseObject []model.Activity
 	json.Unmarshal(responseData, &responseObject)
 

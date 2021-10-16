@@ -19,12 +19,14 @@ func main() {
 	config := config.ReadConfig("properties.ini")
 
 	//create csv service
-	cs := csv.New()
+	cs := csv.New(config.DataSource)
+	//create csv worker service
+	cws := csv.NewWorker(config.DataSourceWorker)
 	//create api service
-	as := api.New(config.ApiUri)
+	as := api.New(config.ApiUri, &http.Client{})
 
 	//create item service
-	s := service.New(*cs, *as, config.DataSource)
+	s := service.New(*cs, *cws, *as, config.DataSource)
 
 	//create controller
 	c := controller.New(*s)
