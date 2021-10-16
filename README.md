@@ -14,6 +14,7 @@ Clone the repo:
 # Download packages:
     * gorilla/mux: `go get github.com/gorilla/mux`
     * BurntSushi/toml: `go get github.com/BurntSushi/toml`
+    * stretchr/testigy: `go get -u github.com/stretchr/testify`
 
 Set properties variables
 
@@ -28,6 +29,7 @@ Try the endpoints:
 
     curl -XGET http://localhost:3000/api/v1/items
     curl -XGET http://localhost:3000/api/v1/items/1
+    curl -XPOST http://localhost:3000/api/v1/items/sync
 
 License
 -------
