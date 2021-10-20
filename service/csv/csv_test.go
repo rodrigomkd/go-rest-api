@@ -3,46 +3,42 @@ package csv
 import (
 	"errors"
 	"log"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-type mockServiceCsv struct {
+type mockFile struct {
 	mock.Mock
 }
 
-func (m *mockServiceCsv) ReadCSV(path string) ([][]string, error) {
-	log.Println("Mocked ReadCSV function")
-	args := m.Called(path)
+func (m *mockFile) Open(name string) (*os.File, error) {
+	log.Println("Mocked Open function")
+	args := m.Called(name)
 
-	activities := [][]string{{"1", "Activity 1", "2021-10-09T00:19:20.8445283+00:00", "false"}}
-	return activities, args.Error(1)
+	return nil, args.Error(1)
 }
 
 func TestReadCsv_Activities(t *testing.T) {
-	mockCsv := new(mockServiceCsv)
-	mockCsv.On("ReadCSV", "data.csv").Return(make([][]string, 0), nil)
+	mock := new(mockFile)
+	mock.On("Open", "data.csv").Return(&os.File{}, nil)
 
-	csvService := mockCsv
-	activities, err := csvService.ReadCSV("data.csv")
+	csvService := New("data.csv", mock)
+	activities, err := csvService.ReadCSV()
+
+	assert.Equal(t, len(activities), 0)
 
 	log.Println("Activities: ", activities)
-	assert.Equal(t, activities[0][0], "1")
-	assert.Equal(t, activities[0][1], "Activity 1")
-	assert.Equal(t, activities[0][2], "2021-10-09T00:19:20.8445283+00:00")
-	assert.Equal(t, activities[0][3], "false")
-
-	log.Println("Activities: ", activities[0][0])
-	assert.NoError(t, err)
+	log.Println("Error: ", err)
 }
 func TestReadCsv_Error(t *testing.T) {
-	mockCsv := new(mockServiceCsv)
-	mockCsv.On("ReadCSV", "error.csv").Return(make([][]string, 0), errors.New("Error to open CSV file"))
+	mock := new(mockFile)
+	mock.On("Open", "error.csv").Return(nil, errors.New("Error to open CSV file"))
 
-	csvService := mockCsv
-	activities, err := csvService.ReadCSV("error.csv")
+	csvService := New("error.csv", mock)
+	activities, err := csvService.ReadCSV()
 
 	log.Println("Activities: ", activities)
 	log.Println("Error: ", err)

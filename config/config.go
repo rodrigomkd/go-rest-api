@@ -9,9 +9,10 @@ import (
 
 // Config ...
 type Config struct {
-	ServerPort int
-	DataSource string
-	ApiUri     string
+	ServerPort       int
+	DataSource       string
+	DataSourceWorker string
+	ApiUri           string
 }
 
 func ReadConfig(configfile string) Config {

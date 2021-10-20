@@ -14,13 +14,20 @@ import (
 //struct
 type Service struct {
 	cs         csv.CSVService
+	csw        csv.CSVWorkerService
 	api        api.ApiService
 	dataSource string
 }
 
-func New(cs csv.CSVService, api api.ApiService, dataSource string) *Service {
+type ICSVService interface {
+	ReadCSV() ([][]string, error)
+	SaveActivities(activities []model.Activity)
+}
+
+func New(cs csv.CSVService, csw csv.CSVWorkerService, api api.ApiService, dataSource string) *Service {
 	return &Service{
 		cs:         cs,
+		csw:        csw,
 		api:        api,
 		dataSource: dataSource,
 	}
@@ -28,15 +35,52 @@ func New(cs csv.CSVService, api api.ApiService, dataSource string) *Service {
 
 //GetItems - Returns items from CSV
 func (s Service) GetItems() ([]model.Activity, error) {
-	items := s.api.GetActivities()
+	items := []model.Activity{}
 
-	s.cs.SaveActivities(s.dataSource, items)
+	csvLines, err := s.cs.ReadCSV()
+	if err != nil {
+		log.Println("Error reading CSV: ", err)
+		return items, err
+	}
+	for _, line := range csvLines {
+		id, err := strconv.Atoi(line[0])
+		if err != nil {
+			log.Println("Error ID is not an Integer: ", err)
+			return items, err
+		}
+
+		completed, err := strconv.ParseBool(line[3])
+		if err != nil {
+			log.Println("Error ID is not an Integer: ", err)
+			return items, err
+		}
+
+		temp := model.Activity{
+			Id:        id,
+			Title:     line[1],
+			DueDate:   line[2],
+			Completed: completed,
+		}
+		items = append(items, temp)
+		log.Println("Activities: ", items)
+	}
 
 	return items, nil
 }
 
+//GetItems - Read API and save into CSV
 func (s Service) GetItemsSync() ([]model.Activity, error) {
-	return s.GetItems()
+	//read api
+	items := s.api.GetActivities()
+	//save content
+	s.cs.SaveActivities(items)
+
+	return items, nil
+}
+
+//GetItemsWorker - Read from CSV using a worker pool
+func (s Service) GetItemsWorker(typ string, items int, itemsPerWork int) ([]model.Worker, error) {
+	return s.csw.ReadWorkers(typ, items, itemsPerWork), nil
 }
 
 func (s Service) GetItem(id int) (model.Activity, error) {

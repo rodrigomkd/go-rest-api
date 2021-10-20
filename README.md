@@ -20,6 +20,8 @@ Set properties variables
 
     ServerPort=3000 <SERVER PORT> 
     DataSource="data.csv" <CSV PATH>
+    DataSourceWorker="data_worker.csv" <CSV PATH>
+    ApiUri="https://fakerestapi.azurewebsites.net/api/v1/Activities" <API URL>
 
 Run the server
 
@@ -29,6 +31,7 @@ Try the endpoints:
 
     curl -XGET http://localhost:3000/api/v1/items
     curl -XGET http://localhost:3000/api/v1/items/1
+    curl -XGET http://localhost:3000/api/v1/items/workers/type=odd&items=10&items_per_workers=2
     curl -XPOST http://localhost:3000/api/v1/items/sync
 
 License
