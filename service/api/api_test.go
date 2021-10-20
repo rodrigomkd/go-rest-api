@@ -1,83 +1,81 @@
 package api
 
 import (
-	"go-rest-api/model"
+	"bytes"
+	"errors"
+	"io/ioutil"
 	"log"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
+	"github.com/rodrigomkd/go-rest-api/model"
+
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 type mockHttpClient struct {
-	mock.Mock
+	getResponse *http.Response
+	getError    error
 }
 
 func (m *mockHttpClient) Get(url string) (resp *http.Response, err error) {
 	log.Println("Mocked Get function")
-	return httptest.NewRecorder().Result(), nil
+	return m.getResponse, m.getError
 }
 
 func TestApiService(t *testing.T) {
 	// test table
 	tests := []struct {
 		name string
-		// Body mock the response body
-		Body string
-		// StatusCode mock the response statusCode
-		StatusCode int
-
 		// Expected Result
-		Result *model.Activity
+		Result model.Activity
 		// Expected Error
 		Error error
+		//mock usecase
+		useCaseMock mockHttpClient
 	}{
 		{
-			name:       "valid response",
-			Body:       `{"userId": 1,"id": 1,"title": "test title","body": "test body"}`,
-			StatusCode: 200,
-			Result: &model.Activity{
+			name: "Valid Response from API",
+			Result: model.Activity{
 				Id:        1,
-				Title:     "1",
-				DueDate:   "test title",
+				Title:     "test title",
+				DueDate:   "2021-10-18T18:53:16.2413765+00:00",
 				Completed: false,
 			},
 			Error: nil,
+			useCaseMock: mockHttpClient{
+				getResponse: &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       ioutil.NopCloser(bytes.NewBufferString(string(`[{"id": 1,"title": "test title","dueDate": "2021-10-18T18:53:16.2413765+00:00","completed":false}]`))),
+				},
+			},
+		},
+		{
+			name:   "Invalid Response from API",
+			Result: model.Activity{},
+			Error:  errors.New("Ocurred an error."),
+			useCaseMock: mockHttpClient{
+				getResponse: &http.Response{
+					StatusCode: http.StatusInternalServerError,
+				},
+				getError: errors.New("Ocurred an error."),
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mock := new(mockHttpClient)
-			//mock.On("Get").Return("algo")
-
-			//pass method mock
-			api := New("testing", mock)
-			activities := api.GetActivities()
+			api := New("testing", &tt.useCaseMock)
+			activities, err := api.GetActivities()
 
 			log.Println("Activities: ", activities)
-			assert.Equal(t, len(activities), 1)
+			log.Println("Error: ", err)
+			if tt.Error == nil {
+				assert.Equal(t, tt.Result, activities[0])
+			} else {
+				assert.Equal(t, tt.Error, err)
+			}
 		})
 
 	}
-}
-
-func TestReadApi_Activities(t *testing.T) {
-	mock := new(mockHttpClient)
-	//mock.On("Get").Return("algo")
-
-	//pass method mock
-	api := New("testing", mock)
-	activities := api.GetActivities()
-
-	log.Println("Activities: ", activities)
-	assert.Equal(t, len(activities), 0)
-	/*
-		assert.Equal(t, activities[0].Id, 1)
-		assert.Equal(t, activities[0].Title, "Activity 1")
-		assert.Equal(t, activities[0].DueDate, "2021-10-09T00:19:20.8445283+00:00")
-		assert.Equal(t, activities[0].Completed, false)
-	*/
 }

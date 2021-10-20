@@ -80,8 +80,9 @@ func (c ItemController) GetItem(w http.ResponseWriter, r *http.Request) {
 
 func (c ItemController) GetItemsWorkers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	log.Println("params: ", r.URL.Query())
-	err, sc := handleQueryParams(r.URL.Query())
+	query := r.URL.Query()
+	log.Println("params: ", query)
+	err, sc := handleQueryParams(query)
 	if err != nil {
 		errorResponse(w, err.Error(), sc)
 		return

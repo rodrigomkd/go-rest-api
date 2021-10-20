@@ -26,22 +26,24 @@ func New(activitiesUri string, client IHttpClient) *ApiService {
 	}
 }
 
-func (api ApiService) GetActivities() []model.Activity {
+func (api ApiService) GetActivities() ([]model.Activity, error) {
 	response, err := api.httpClient.Get(api.activitiesUri)
 	log.Println("API response: ", response)
 	if err != nil {
 		log.Println("ERROR: ", err)
+		return nil, err
 	}
 
 	responseData, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		log.Println("ERROR: ", err)
+		return nil, err
 	}
 
 	var responseObject []model.Activity
 	json.Unmarshal(responseData, &responseObject)
 
-	return responseObject
+	return responseObject, nil
 }
 
 func convertActivitiesCsv(activities []model.Activity) [][]string {
