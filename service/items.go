@@ -7,24 +7,30 @@ import (
 	"strconv"
 
 	"github.com/rodrigomkd/go-rest-api/model"
-	"github.com/rodrigomkd/go-rest-api/service/api"
-	"github.com/rodrigomkd/go-rest-api/service/csv"
 )
 
 //struct
 type Service struct {
-	cs         csv.CSVService
-	csw        csv.CSVWorkerService
-	api        api.ApiService
+	cs         ICSVService
+	csw        ICSVWService
+	api        IAPIService
 	dataSource string
 }
 
 type ICSVService interface {
 	ReadCSV() ([][]string, error)
-	SaveActivities(activities []model.Activity)
+	SaveActivities(activities []model.Activity) error
 }
 
-func New(cs csv.CSVService, csw csv.CSVWorkerService, api api.ApiService, dataSource string) *Service {
+type ICSVWService interface {
+	ReadWorkers(typ string, items int, itemsPerWork int) []model.Worker
+}
+
+type IAPIService interface {
+	GetActivities() ([]model.Activity, error)
+}
+
+func New(cs ICSVService, csw ICSVWService, api IAPIService, dataSource string) *Service {
 	return &Service{
 		cs:         cs,
 		csw:        csw,
@@ -71,16 +77,17 @@ func (s Service) GetItems() ([]model.Activity, error) {
 //GetItems - Read API and save into CSV
 func (s Service) GetItemsSync() ([]model.Activity, error) {
 	//read api
-	items := s.api.GetActivities()
+	items, err := s.api.GetActivities()
 	//save content
 	s.cs.SaveActivities(items)
 
-	return items, nil
+	return items, err
 }
 
 //GetItemsWorker - Read from CSV using a worker pool
 func (s Service) GetItemsWorker(typ string, items int, itemsPerWork int) ([]model.Worker, error) {
-	return s.csw.ReadWorkers(typ, items, itemsPerWork), nil
+	workers := s.csw.ReadWorkers(typ, items, itemsPerWork)
+	return workers, nil
 }
 
 func (s Service) GetItem(id int) (model.Activity, error) {

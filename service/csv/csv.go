@@ -33,7 +33,7 @@ func (cs CSVService) ReadCSV() ([][]string, error) {
 		return nil, err
 	}
 
-	log.Print("Successfully Opened CSV file")
+	log.Print("Successfully Opened CSV file: ", csvFile)
 	defer csvFile.Close()
 
 	return csv.NewReader(csvFile).ReadAll()

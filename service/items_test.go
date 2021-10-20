@@ -1,84 +1,436 @@
 package service
 
 import (
+	"errors"
 	"log"
 	"net/http"
-	"os"
+	"strconv"
 	"testing"
 
 	"github.com/rodrigomkd/go-rest-api/model"
-	"github.com/rodrigomkd/go-rest-api/service/api"
-	"github.com/rodrigomkd/go-rest-api/service/csv"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
-type mockFile struct {
-	mock.Mock
-}
-
-func (m *mockFile) Open(name string) (*os.File, error) {
-	log.Println("Mocked Open function")
-	args := m.Called(name)
-
-	return nil, args.Error(1)
-}
-
 type mockCsvService struct {
-	mock.Mock
-}
-
-type mockCsvWorkerService struct {
-	mock.Mock
+	getResponse [][]string
+	getError    error
 }
 
 type mockApiService struct {
-	mock.Mock
+	getResponse []model.Activity
+	getError    error
 }
 
-func (s mockCsvService) ReadCSV() ([][]string, error) {
-	log.Println("Mocked GetItems function")
-
-	activities := []model.Activity{}
-	act := model.Activity{}
-	act.Id = 1
-	act.Title = "Activity 1"
-	act.DueDate = "2021-10-09T00:19:20.8445283+00:00"
-	act.Completed = false
-	activities = append(activities, act)
-
-	return nil, nil
+type mockWorkerService struct {
+	getResponse []model.Worker
+	getError    error
 }
 
-func (s mockCsvService) GetItems() ([]model.Activity, error) {
-	log.Println("Mocked GetItems function")
-
-	activities := []model.Activity{}
-	act := model.Activity{}
-	act.Id = 1
-	act.Title = "Activity 1"
-	act.DueDate = "2021-10-09T00:19:20.8445283+00:00"
-	act.Completed = false
-	activities = append(activities, act)
-
-	return activities, nil
+func (m *mockCsvService) ReadCSV() ([][]string, error) {
+	log.Println("Mocked Get function")
+	return m.getResponse, m.getError
 }
 
-func TestService_GetItems(t *testing.T) {
-	csvService := csv.New("test", &mockFile{})
-	worker := csv.NewWorker("test")
-	api := api.New("activities", &http.Client{})
-	mockCsv := new(mockCsvService)
-	mockCsv.On("ReadCSV").Return()
+func (m *mockCsvService) SaveActivities(activities []model.Activity) error {
+	log.Println("Mocked SaveActivities function")
+	return m.getError
+}
 
-	service := New(*csvService, *worker, *api, "test")
-	activities, err := service.GetItems()
+func (m *mockWorkerService) ReadWorkers(typ string, items int, itemsPerWork int) []model.Worker {
+	log.Println("Mocked SaveActivities function")
+	return m.getResponse
+}
 
-	log.Println("Activities: ", activities)
-	log.Println("err: ", err)
-	assert.Equal(t, activities[0].Id, 1)
-	assert.Equal(t, activities[0].Title, "Activity 1")
-	assert.Equal(t, activities[0].DueDate, "2021-10-09T00:19:20.8445283+00:00")
-	assert.Equal(t, activities[0].Completed, false)
+func (m *mockApiService) GetActivities() ([]model.Activity, error) {
+	log.Println("Mocked GetActivities function")
+	return m.getResponse, m.getError
+}
+
+func TestItemsService(t *testing.T) {
+	// test table
+	tests := []struct {
+		name string
+		// Expected Result
+		Result []model.Activity
+		// Expected Error
+		Error error
+		//mock usecase
+		useCaseCsvMock mockCsvService
+		//mock api
+		useCaseApiMock mockApiService
+		//mock worker
+		useCaseWorkerMock mockWorkerService
+	}{
+		{
+			name: "Valid Response from CSV Service",
+			Result: []model.Activity{
+				{
+					Id:        1,
+					Title:     "Title 1",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: false,
+				},
+				{
+					Id:        5,
+					Title:     "Title 5",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: true,
+				},
+			},
+			Error: nil,
+			useCaseCsvMock: mockCsvService{
+				getResponse: [][]string{
+					{"1", "Title 1", "2021-10-18T18:53:16.2413765+00:00", "False"},
+					{"5", "Title 5", "2021-10-18T18:53:16.2413765+00:00", "True"},
+				},
+			},
+		},
+		{
+			name: "Invalid Data from CSV Service",
+			Result: []model.Activity{
+				{
+					Id:        1,
+					Title:     "Title 1",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: false,
+				},
+				{
+					Id:        5,
+					Title:     "Title 5",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: true,
+				},
+			},
+			Error: errors.New("strconv.Atoi: parsing \"NO INTEGER\": invalid syntax"),
+			useCaseCsvMock: mockCsvService{
+				getResponse: [][]string{
+					{"NO INTEGER", "Title 1", "2021-10-18T18:53:16.2413765+00:00", "False"},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			itemsService := New(&tt.useCaseCsvMock, &tt.useCaseWorkerMock, &tt.useCaseApiMock, "test")
+			activities, err := itemsService.GetItems()
+
+			log.Println("Activities: ", activities)
+			log.Println("Error: ", err)
+			if tt.Error == nil {
+				assert.Equal(t, tt.Result, activities)
+			} else {
+				assert.Equal(t, tt.Error.Error(), err.Error())
+			}
+		})
+
+	}
+}
+
+func TestGetItem(t *testing.T) {
+	// test table
+	tests := []struct {
+		name string
+		// Expected Result
+		Result []model.Activity
+		// Expected Error
+		Error error
+		//mock usecase
+		useCaseCsvMock mockCsvService
+		//mock api
+		useCaseApiMock mockApiService
+		//mock worker
+		useCaseWorkerMock mockWorkerService
+	}{
+		{
+			name: "Valid Response from CSV Service",
+			Result: []model.Activity{
+				{
+					Id:        1,
+					Title:     "Title 1",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: false,
+				},
+				{
+					Id:        5,
+					Title:     "Title 5",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: true,
+				},
+			},
+			Error: nil,
+			useCaseCsvMock: mockCsvService{
+				getResponse: [][]string{
+					{"1", "Title 1", "2021-10-18T18:53:16.2413765+00:00", "False"},
+					{"5", "Title 5", "2021-10-18T18:53:16.2413765+00:00", "True"},
+				},
+			},
+		},
+		{
+			name: "Invalid Data from CSV Service",
+			Result: []model.Activity{
+				{
+					Id:        1,
+					Title:     "Title 1",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: false,
+				},
+				{
+					Id:        5,
+					Title:     "Title 5",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: true,
+				},
+			},
+			Error: errors.New(strconv.Itoa(http.StatusInternalServerError)),
+			useCaseCsvMock: mockCsvService{
+				getResponse: [][]string{
+					{"NO INTEGER", "Title 1", "2021-10-18T18:53:16.2413765+00:00", "False"},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			itemsService := New(&tt.useCaseCsvMock, &tt.useCaseWorkerMock, &tt.useCaseApiMock, "test")
+
+			act, err := itemsService.GetItem(1)
+			if tt.Error == nil {
+				assert.Equal(t, tt.Result[0], act)
+			} else {
+				assert.Equal(t, tt.Error.Error(), err.Error())
+			}
+		})
+
+	}
+}
+
+func TestGetItemsSync(t *testing.T) {
+	// test table
+	tests := []struct {
+		name string
+		// Expected Result
+		Result []model.Activity
+		// Expected Error
+		Error error
+		//mock usecase
+		useCaseCsvMock mockCsvService
+		//mock api
+		useCaseApiMock mockApiService
+		//mock worker
+		useCaseWorkerMock mockWorkerService
+	}{
+		{
+			name: "Valid Response from CSV Service",
+			Result: []model.Activity{
+				{
+					Id:        1,
+					Title:     "Title 1",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: false,
+				},
+				{
+					Id:        5,
+					Title:     "Title 5",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: true,
+				},
+			},
+			Error: nil,
+			useCaseApiMock: mockApiService{
+				getResponse: []model.Activity{
+					{
+						Id:        1,
+						Title:     "Title 1",
+						DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+						Completed: false,
+					},
+					{
+						Id:        5,
+						Title:     "Title 5",
+						DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+						Completed: true,
+					},
+				},
+			},
+			useCaseCsvMock: mockCsvService{
+				getResponse: [][]string{},
+			},
+		},
+		{
+			name: "Invalid Data from CSV Service",
+			Result: []model.Activity{
+				{
+					Id:        1,
+					Title:     "Title 1",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: false,
+				},
+				{
+					Id:        5,
+					Title:     "Title 5",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: true,
+				},
+			},
+			Error: errors.New(strconv.Itoa(http.StatusInternalServerError)),
+			useCaseApiMock: mockApiService{
+				getResponse: []model.Activity{
+					{
+						Id:        1,
+						Title:     "Title 1",
+						DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+						Completed: false,
+					},
+					{
+						Id:        5,
+						Title:     "Title 5",
+						DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+						Completed: true,
+					},
+				},
+				getError: errors.New(strconv.Itoa(http.StatusInternalServerError)),
+			},
+			useCaseCsvMock: mockCsvService{
+				getResponse: [][]string{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			itemsService := New(&tt.useCaseCsvMock, &tt.useCaseWorkerMock, &tt.useCaseApiMock, "test")
+
+			act, err := itemsService.GetItemsSync()
+			log.Println("Activities sync: ", act)
+			log.Println("Error: ", err)
+
+			if tt.Error == nil {
+				assert.Equal(t, tt.Result, act)
+			} else {
+				assert.Equal(t, tt.Error.Error(), err.Error())
+			}
+		})
+
+	}
+}
+
+func TestGetItemsWorkers(t *testing.T) {
+	// test table
+	tests := []struct {
+		name string
+		// Expected Result
+		Result []model.Worker
+		// Expected Error
+		Error error
+		//mock usecase
+		useCaseCsvMock mockCsvService
+		//mock api
+		useCaseApiMock mockApiService
+		//mock worker
+		useCaseWorkerMock mockWorkerService
+	}{
+		{
+			name: "Test Success",
+			Result: []model.Worker{
+				{
+					Id:        1,
+					Title:     "Title 1",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: false,
+					Type:      "odd",
+				},
+				{
+					Id:        5,
+					Title:     "Title 5",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: true,
+					Type:      "even",
+				},
+			},
+			Error: nil,
+			useCaseWorkerMock: mockWorkerService{
+				getResponse: []model.Worker{
+					{
+						Id:        1,
+						Title:     "Title 1",
+						DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+						Completed: false,
+						Type:      "odd",
+					},
+					{
+						Id:        5,
+						Title:     "Title 5",
+						DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+						Completed: true,
+						Type:      "even",
+					},
+				},
+			},
+			useCaseCsvMock: mockCsvService{
+				getResponse: [][]string{},
+			},
+		},
+		{
+			name: "Test Success 2",
+			Result: []model.Worker{
+				{
+					Id:        1,
+					Title:     "Title 1",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: false,
+					Type:      "odd",
+				},
+				{
+					Id:        5,
+					Title:     "Title 5",
+					DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+					Completed: true,
+					Type:      "even",
+				},
+			},
+			Error: errors.New(strconv.Itoa(http.StatusInternalServerError)),
+			useCaseWorkerMock: mockWorkerService{
+				getResponse: []model.Worker{
+					{
+						Id:        1,
+						Title:     "Title 1",
+						DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+						Completed: false,
+						Type:      "odd",
+					},
+					{
+						Id:        5,
+						Title:     "Title 5",
+						DueDate:   "2021-10-18T18:53:16.2413765+00:00",
+						Completed: true,
+						Type:      "even",
+					},
+				},
+			},
+			useCaseCsvMock: mockCsvService{
+				getResponse: [][]string{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			itemsService := New(&tt.useCaseCsvMock, &tt.useCaseWorkerMock, &tt.useCaseApiMock, "test")
+
+			act, err := itemsService.GetItemsWorker("odd", 10, 2)
+			log.Println("Workers: ", act)
+			log.Println("Error: ", err)
+
+			assert.Equal(t, tt.Result, act)
+			assert.Nil(t, err)
+		})
+
+	}
 }

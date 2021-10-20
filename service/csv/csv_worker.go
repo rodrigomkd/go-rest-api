@@ -14,7 +14,7 @@ import (
 )
 
 type ICSVWService interface {
-	ReadWorkers() []model.Worker
+	ReadWorkers(typ string, items int, itemsPerWork int) []model.Worker
 }
 
 type CSVWorkerService struct {
@@ -41,35 +41,19 @@ func (cs CSVWorkerService) ReadWorkers(typ string, items int, itemsPerWork int) 
 	return activities
 }
 
-// with Worker pools
+//concuRSwWP - Worker pools
 func (cs CSVWorkerService) concuRSwWP(f *os.File, typ string, items int, itemsPerWork int) []model.Worker {
 	fcsv := csv.NewReader(f)
-	rs := make([]model.Worker, 0)
-	numWps := items / itemsPerWork
-	jobs := make(chan []string, numWps)
+	rs := make([]model.Worker, items)
+	jobs := make(chan []string, items)
 	res := make(chan model.Worker)
 
-	var wg sync.WaitGroup
-	worker := func(jobs <-chan []string, results chan<- model.Worker) {
-		for {
-			select {
-			case job, ok := <-jobs: // must check for readable state of the channel.
-				if !ok {
-					return
-				}
-				results <- parseWorker(job)
-			}
-		}
-	}
+	wg := new(sync.WaitGroup)
 
-	// init workers
-	for w := 0; w < numWps; w++ {
+	// start up workers
+	for w := 1; w <= items; w++ {
 		wg.Add(1)
-		go func() {
-			// this line will exec when chan `res` processed output
-			defer wg.Done()
-			worker(jobs, res)
-		}()
+		go itemsPerWorker(jobs, res, wg, itemsPerWork)
 	}
 
 	go func() {
@@ -98,17 +82,32 @@ func (cs CSVWorkerService) concuRSwWP(f *os.File, typ string, items int, itemsPe
 		close(jobs) // close jobs to signal workers that no more job are incoming.
 	}()
 
+	// Now collect all the results...
+	// But first, make sure close the result channel when everything was processed
 	go func() {
 		wg.Wait()
-		close(res) // when you close(res) it breaks the below loop.
+		close(res)
 	}()
 
+	index := 0
 	for r := range res {
-		//items_per_worker
-		rs = append(rs, r)
+		rs[index] = r
+		index++
 	}
 
 	return rs
+}
+
+func itemsPerWorker(jobs <-chan []string, results chan<- model.Worker, wg *sync.WaitGroup, itemsPerWork int) {
+	// Decreasing internal counter for wait-group as soon as goroutine finishes
+	defer wg.Done()
+
+	i := 0
+	for j := range jobs {
+		if i <= itemsPerWork {
+			results <- parseWorker(j)
+		}
+	}
 }
 
 func parseWorker(data []string) model.Worker {

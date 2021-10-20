@@ -14,17 +14,17 @@ type ItemController interface {
 }
 
 // HandlerRequests - Returns router that handles API paths
-func GetRouter(c ItemController) *mux.Router {
+func GetRouter(ic ItemController) *mux.Router {
 	// creates a new instance of a mux router
 	router := mux.NewRouter().StrictSlash(true)
 
 	api := router.PathPrefix("/api/v1").Subrouter()
 
-	api.HandleFunc("/items", c.GetItems).Methods(http.MethodGet)
-	api.HandleFunc("/items/workers", c.GetItemsWorkers).Methods(http.MethodGet)
-	api.HandleFunc("/items/{id}", c.GetItem).Methods(http.MethodGet)
+	api.HandleFunc("/items", ic.GetItems).Methods(http.MethodGet)
+	api.HandleFunc("/items/workers", ic.GetItemsWorkers).Methods(http.MethodGet)
+	api.HandleFunc("/items/{id}", ic.GetItem).Methods(http.MethodGet)
 
-	api.HandleFunc("/items/sync", c.GetItemsSync).Methods(http.MethodPost)
+	api.HandleFunc("/items/sync", ic.GetItemsSync).Methods(http.MethodPost)
 
 	return router
 }
