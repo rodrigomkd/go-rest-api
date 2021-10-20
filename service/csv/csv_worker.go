@@ -41,20 +41,16 @@ func (cs CSVWorkerService) ReadWorkers(typ string, items int, itemsPerWork int) 
 	return activities
 }
 
-// with Worker pools
+//concuRSwWP - Worker pools
 func (cs CSVWorkerService) concuRSwWP(f *os.File, typ string, items int, itemsPerWork int) []model.Worker {
 	fcsv := csv.NewReader(f)
 	rs := make([]model.Worker, items)
-	numWps := items //items / itemsPerWork
-	jobs := make(chan []string, numWps)
+	jobs := make(chan []string, items)
 	res := make(chan model.Worker)
 
-	//var wg sync.WaitGroup
-
-	// I think we need a wait group, not sure.
 	wg := new(sync.WaitGroup)
 
-	// start up some workers that will block and wait?
+	// start up workers
 	for w := 1; w <= items; w++ {
 		wg.Add(1)
 		go itemsPerWorker(jobs, res, wg, itemsPerWork)
@@ -87,7 +83,7 @@ func (cs CSVWorkerService) concuRSwWP(f *os.File, typ string, items int, itemsPe
 	}()
 
 	// Now collect all the results...
-	// But first, make sure we close the result channel when everything was processed
+	// But first, make sure close the result channel when everything was processed
 	go func() {
 		wg.Wait()
 		close(res)
@@ -95,8 +91,6 @@ func (cs CSVWorkerService) concuRSwWP(f *os.File, typ string, items int, itemsPe
 
 	index := 0
 	for r := range res {
-		//items_per_worker
-		//rs = append(rs, r)
 		rs[index] = r
 		index++
 	}
@@ -108,7 +102,6 @@ func itemsPerWorker(jobs <-chan []string, results chan<- model.Worker, wg *sync.
 	// Decreasing internal counter for wait-group as soon as goroutine finishes
 	defer wg.Done()
 
-	// eventually I want to have a []string channel to work on a chunk of lines not just one line of text
 	i := 0
 	for j := range jobs {
 		if i <= itemsPerWork {
