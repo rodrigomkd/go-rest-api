@@ -89,6 +89,27 @@ func TestItemsController(t *testing.T) {
 			} else {
 				assert.Equal(t, tt.StatusCode, w.Result().StatusCode)
 			}
+
+			itemsController.GetItem(w, r)
+			if tt.Error == nil {
+				assert.Equal(t, tt.StatusCode, w.Result().StatusCode)
+			} else {
+				assert.Equal(t, tt.StatusCode, w.Result().StatusCode)
+			}
+
+			itemsController.GetItemsSync(w, r)
+			if tt.Error == nil {
+				assert.Equal(t, tt.StatusCode, w.Result().StatusCode)
+			} else {
+				assert.Equal(t, tt.StatusCode, w.Result().StatusCode)
+			}
+
+			itemsController.GetItemsWorkers(w, r)
+			if tt.Error == nil {
+				assert.Equal(t, tt.StatusCode, w.Result().StatusCode)
+			} else {
+				assert.Equal(t, tt.StatusCode, w.Result().StatusCode)
+			}
 		})
 
 	}
